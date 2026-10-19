@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MY LOVE</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Comfortaa:wght@700&family=Quicksand:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Quicksand', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            background-color: #000000;
+            user-select: none;
+            touch-action: none;
+        }
+        .font-pacifico {
+            font-family: 'Pacifico', cursive;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            outline: none;
+        }
+        .glass-card {
+            background: rgba(15, 5, 20, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 105, 180, 0.25);
+            box-shadow: 0 8px 32px rgba(255, 20, 147, 0.25);
+        }
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 182, 193, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-btn:hover {
+            background: rgba(255, 20, 147, 0.35);
+            border-color: rgba(255, 105, 180, 0.8);
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.6);
+            transform: translateY(-2px);
+        }
+        .glass-btn:active {
+            transform: translateY(1px) scale(0.96);
+        }
+        @keyframes neon-pulse {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 20, 147, 0.8)); }
+            50% { filter: drop-shadow(0 0 22px rgba(255, 105, 180, 1)); }
+        }
+        .glow-heart {
+            animation: neon-pulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-pink-100 relative h-screen w-screen overflow-hidden">
+
+    <!-- Header UI Minimal -->
+    <header class="absolute top-4 left-4 right-4 z-10 flex justify-between items-center pointer-events-none">
+        <div class="glass-card px-4 py-2.5 rounded-2xl pointer-events-auto flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-pink-500 to-purple-600 flex items-center justify-center text-xl text-white shadow-lg shadow-pink-500/40 glow-heart">
+                <i class="fa-solid fa-heart"></i>
+            </div>
+            <!-- <div>
+                <h1 class="font-pacifico text-lg md:text-xl text-pink-200 tracking-wide">LoveLoom 3D</h1>
+                <p class="text-[11px] text-pink-300/80 font-medium">Bầu Trời Chữ Neon Tình Yêu</p>
+            </div> -->
+        </div>
+
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <button id="btn-music" title="Bật/Tắt Nhạc Nền" class="glass-btn px-3.5 py-2.5 md:px-4 md:py-2.5 rounded-2xl text-pink-200 font-bold text-xs md:text-sm flex items-center gap-2">
+                <i id="music-icon" class="fa-solid fa-volume-xmark text-pink-400"></i>
+                <!-- <span class="hidden md:inline" id="music-text">Bật Nhạc</span> -->
+            </button>
+        </div>
+    </header>
+
+    <audio id="bg-music" autoplay loop src="audio/music.mp3"></audio>
+
+    <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+    <script>
+        // const PHRASES = [
+        //     "I LOVE YOU 💖",
+        //     "ANH YÊU EM 🥰",
+        //     "MÃI BÊN NHAU 💖",
+        //     "CÙNG NHAU GIÀ ĐI 💍",
+        //     "EM LÀ THẾ GIỚI CỦA ANH 🌍",
+        //     "MÃI YÊU EM ✨"
+        // ];
+
+        const PHRASES = [
+            "I💖",
+            "L🥰",
+            "O💖",
+            "V💍",
+            "E🌍",
+            "U✨"
+        ];
+
+        const TEXT_COLORS = [
+            { text: '#ffffff', glow: '#ff007f' },
+            { text: '#ffc2d1', glow: '#ff1493' },
+            { text: '#ffb3c6', glow: '#ff69b4' },
+            { text: '#ffe6ed', glow: '#ff0055' },
+            { text: '#ffffff', glow: '#e0aaff' }
+        ];
+
+        let scene, camera, renderer;
+        let textSprites = [];
+        let heart3DList = [];
+        let mouse = new THREE.Vector2();
+        let starParticles;
+
+        function createNeonTextSprite(textStr) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = 1024;
+            canvas.height = 256;
+
+            const colorTheme = TEXT_COLORS[Math.floor(Math.random() * TEXT_COLORS.length)];
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 68px "Comfortaa", "Quicksand", "Segoe UI", sans-serif';
+
+            // Multi-pass neon glow effect
+            ctx.shadowColor = colorTheme.glow;
+            
+            ctx.shadowBlur = 35;
+            ctx.fillStyle = colorTheme.glow;
+            ctx.fillText(textStr, canvas.width / 2, canvas.height / 2);
+
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = colorTheme.text;
+            ctx.fillText(textStr, canvas.width / 2, canvas.height / 2);
+
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(textStr, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const sprite = new THREE.Sprite(spriteMaterial);
+            
+            // Random scaling for depth variation
+            const baseScale = 4.5 + Math.random() * 3.5;
+            sprite.scale.set(baseScale, baseScale * (256 / 1024), 1);
+
+            return sprite;
+        }
+
+        function createHeartGeometry() {
+            const heartShape = new THREE.Shape();
+            const x = 0, y = 0;
+            heartShape.moveTo(x + 0.25, y + 0.25);
+            heartShape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.2, y, x, y);
+            heartShape.bezierCurveTo(x - 0.3, y, x - 0.3, y + 0.35, x - 0.3, y + 0.35);
+            heartShape.bezierCurveTo(x - 0.3, y + 0.55, x - 0.1, y + 0.77, x + 0.25, y + 0.95);
+            heartShape.bezierCurveTo(x + 0.6, y + 0.77, x + 0.8, y + 0.55, x + 0.8, y + 0.35);
+            heartShape.bezierCurveTo(x + 0.8, y + 0.35, x + 0.8, y, x + 0.5, y);
+            heartShape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+
+            const extrudeSettings = { depth: 0.12, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 };
+            const geo = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+            geo.center();
+            return geo;
+        }
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.012);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 22);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 1);
+            container.appendChild(renderer.domElement);
+
+            // Subtle Lights
+            const ambientLight = new THREE.AmbientLight(0xff69b4, 1.2);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xff0055, 2, 50);
+            pointLight.position.set(0, 0, 10);
+            scene.add(pointLight);
+
+            // Stars Background
+            createStars();
+
+            // Populate Initial Dense Galaxy of Neon Text Sprites (like image_97a55d)
+            const heartGeo = createHeartGeometry();
+            
+            // Spawn initial 180 floating text sprites across space
+            for (let i = 0; i < 180; i++) {
+                spawnTextSprite(heartGeo, true);
+            }
+
+            // Spawn floating 3D red/pink glowing hearts
+            for (let i = 0; i < 60; i++) {
+                spawn3DHeart(heartGeo);
+            }
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerdown', onPointerDown);
+
+            setupControls();
+        }
+
+        function spawnTextSprite(heartGeo, randomY = false) {
+            const phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+            const sprite = createNeonTextSprite(phrase);
+
+            const spreadX = 32;
+            const spreadY = 28;
+            const spreadZ = 24;
+
+            sprite.position.set(
+                (Math.random() - 0.5) * spreadX,
+                randomY ? (Math.random() - 0.5) * spreadY : 16 + Math.random() * 10,
+                (Math.random() - 0.5) * spreadZ
+            );
+
+            sprite.userData = {
+                speedY: 0.015 + Math.random() * 0.035,
+                driftX: (Math.random() - 0.5) * 0.008,
+                pulseSpeed: 1 + Math.random() * 3,
+                baseScaleX: sprite.scale.x,
+                baseScaleY: sprite.scale.y
+            };
+
+            scene.add(sprite);
+            textSprites.push(sprite);
+        }
+
+        function spawn3DHeart(heartGeo) {
+            const isRed = Math.random() > 0.4;
+            const mat = new THREE.MeshStandardMaterial({
+                color: isRed ? 0xff0033 : 0xff1493,
+                emissive: isRed ? 0xaa0022 : 0x880044,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+
+            const mesh = new THREE.Mesh(heartGeo, mat);
+            const scale = 0.4 + Math.random() * 0.7;
+            mesh.scale.set(scale, scale, scale);
+
+            mesh.position.set(
+                (Math.random() - 0.5) * 34,
+                (Math.random() - 0.5) * 28,
+                (Math.random() - 0.5) * 22
+            );
+
+            mesh.userData = {
+                speedY: 0.01 + Math.random() * 0.025,
+                rotSpeedX: (Math.random() - 0.5) * 0.03,
+                rotSpeedY: (Math.random() - 0.5) * 0.03,
+                driftX: (Math.random() - 0.5) * 0.006
+            };
+
+            scene.add(mesh);
+            heart3DList.push(mesh);
+        }
+
+        function createStars() {
+            const count = 500;
+            const geo = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 80;
+                positions[i + 1] = (Math.random() - 0.5) * 80;
+                positions[i + 2] = (Math.random() - 0.5) * 50;
+            }
+
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({
+                color: 0xffb6c1,
+                size: 0.18,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            starParticles = new THREE.Points(geo, mat);
+            scene.add(starParticles);
+        }
+
+        function setupControls() {
+            const bgMusic = document.getElementById('bg-music');
+            const btnMusic = document.getElementById('btn-music');
+            const musicIcon = document.getElementById('music-icon');
+
+            const updateMusicButton = () => {
+                const isMusicPlaying = !bgMusic.paused;
+                musicIcon.className = isMusicPlaying
+                    ? "fa-solid fa-volume-high text-pink-400 animate-bounce"
+                    : "fa-solid fa-volume-xmark text-pink-400";
+                btnMusic.title = isMusicPlaying ? "Tắt Nhạc" : "Bật Nhạc";
+            };
+
+            bgMusic.addEventListener('play', updateMusicButton);
+            bgMusic.addEventListener('pause', updateMusicButton);
+            bgMusic.play().catch(error => {
+                console.warn("Không thể tự phát nhạc; trình duyệt có thể yêu cầu thao tác của người dùng.", error);
+            });
+
+            btnMusic.addEventListener('click', () => {
+                if (bgMusic.paused) {
+                    bgMusic.play().catch(error => {
+                        console.error("Không thể phát nhạc nền.", error);
+                    });
+                } else {
+                    bgMusic.pause();
+                }
+            });
+        }
+
+        function onPointerMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onPointerDown(e) {
+            if (e.target instanceof Element && e.target.closest('header')) return;
+
+            camera.updateMatrixWorld();
+            let clickedSprite = null;
+            let closestDistance = Infinity;
+            let clickDirectionX = 0;
+            let clickDirectionY = 0;
+
+            textSprites.forEach(sprite => {
+                const viewPosition = sprite.position.clone().applyMatrix4(camera.matrixWorldInverse);
+                const depth = -viewPosition.z;
+                if (depth <= 0) return;
+
+                const projected = sprite.position.clone().project(camera);
+                const screenX = (projected.x + 1) * window.innerWidth / 2;
+                const screenY = (1 - projected.y) * window.innerHeight / 2;
+                const pixelsPerUnit = window.innerHeight /
+                    (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * depth);
+                const halfWidth = sprite.scale.x * pixelsPerUnit / 2;
+                const halfHeight = sprite.scale.y * pixelsPerUnit / 2;
+                const dx = e.clientX - screenX;
+                const dy = e.clientY - screenY;
+
+                if (Math.abs(dx) > halfWidth || Math.abs(dy) > halfHeight) return;
+
+                const distance = Math.hypot(dx / halfWidth, dy / halfHeight);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    clickedSprite = sprite;
+                    clickDirectionX = screenX - e.clientX;
+                    clickDirectionY = e.clientY - screenY;
+                }
+            });
+
+            if (!clickedSprite) return;
+
+            const cameraRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+            const cameraUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+            if (Math.hypot(clickDirectionX, clickDirectionY) < 0.001) {
+                clickDirectionX = Math.random() - 0.5;
+                clickDirectionY = Math.random() - 0.5;
+            }
+            const direction = cameraRight.clone().multiplyScalar(clickDirectionX)
+                .add(cameraUp.clone().multiplyScalar(clickDirectionY)).normalize();
+
+            textSprites.forEach(sprite => {
+                const distance = sprite.position.distanceTo(clickedSprite.position);
+                if (distance > 8) return;
+
+                const push = sprite === clickedSprite ? 4 : (8 - distance) * 0.5;
+                const away = sprite === clickedSprite
+                    ? direction
+                    : sprite.position.clone().sub(clickedSprite.position).normalize();
+                if (away.lengthSq() === 0) away.copy(direction);
+                sprite.position.addScaledVector(away, push);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            // Animate Text Sprites (Slow romantic descent & floating)
+            textSprites.forEach((sprite) => {
+                sprite.position.y -= sprite.userData.speedY;
+                sprite.position.x += Math.sin(elapsedTime + sprite.position.y) * sprite.userData.driftX;
+
+                // Subtle neon pulse
+                const pulse = 1 + Math.sin(elapsedTime * sprite.userData.pulseSpeed) * 0.06;
+                sprite.scale.x = sprite.userData.baseScaleX * pulse;
+                sprite.scale.y = sprite.userData.baseScaleY * pulse;
+
+                // Loop back to top
+                if (sprite.position.y < -15) {
+                    sprite.position.y = 15 + Math.random() * 5;
+                    sprite.position.x = (Math.random() - 0.5) * 32;
+                }
+            });
+
+            // Animate 3D Glowing Hearts
+            heart3DList.forEach((heart) => {
+                heart.position.y -= heart.userData.speedY;
+                heart.rotation.x += heart.userData.rotSpeedX;
+                heart.rotation.y += heart.userData.rotSpeedY;
+                heart.position.x += Math.sin(elapsedTime) * heart.userData.driftX;
+
+                if (heart.position.y < -15) {
+                    heart.position.y = 15;
+                    heart.position.x = (Math.random() - 0.5) * 32;
+                }
+            });
+
+            // Camera subtle tilt on mouse move
+            camera.position.x += (mouse.x * 2 - camera.position.x) * 0.03;
+            camera.position.y += (-mouse.y * 2 - camera.position.y) * 0.03;
+            camera.lookAt(0, 0, 0);
+
+            if (starParticles) {
+                starParticles.rotation.y += 0.0004;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            init();
+            animate();
+        };
+    </script>
+</body>
+</html>
